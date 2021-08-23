@@ -1,5 +1,5 @@
 from scrapy import Spider, Request
-from scrapy_splash import SplashRequest
+from ..items import BestsimilarItem
 
 
 class BestSimilarCrawler(Spider):
@@ -14,28 +14,26 @@ class BestSimilarCrawler(Spider):
     #     }
     # """
 
-    # def start_requests(self):
-    #     for url in self.start_urls:
-    #         yield SplashRequest(
-    #             url,
-    #             self.parse,
-    #             endpoint="render.html",
-    #             args=dict(wait=1, js_source=self.script),
-    #         )
-
     def parse(self, response, **kwargs):
         pagination = response.css("ul.pagination.pagination-lg > li")
 
         for page in pagination:
             page_href = page.xpath("a/@href").get()
             page_number = page.xpath("a/text()").get()
-            if page_number and int(page_number) not in self.pages:
-                self.pages.append(int(page_number))
+            page_class = page.xpath("@class").get()
 
-                yield Request(
-                    url=response.request.urljoin(page_href),
-                    callback=self.parse,
-                )
+            if page_class is None or "disabled" not in page_class:
+                if (
+                    page_number
+                    and page_number.isnumeric()
+                    and int(page_number) not in self.pages
+                ):
+                    self.pages.append(int(page_number))
+
+                    yield Request(
+                        url=response.urljoin(page_href),
+                        callback=self.parse,
+                    )
 
         movies = response.css(
             "div.items.row.equal.img-grid.block-ins.block-ins-tag-s1 > div"
@@ -47,9 +45,31 @@ class BestSimilarCrawler(Spider):
             ).get()
 
             yield Request(
-                url=response.request.urljoin(movie_href),
+                url=response.urljoin(movie_href),
                 callback=self.parse_movie,
             )
 
-    def parse_movie(self, response, **kwargs):
+    def parse_movie(self, response):
         movie_content = response.css("div.item.item-big.clearfix")
+        movie_tags = response.css("div#best-tags > div > div > div")
+
+        title = (
+            movie_content.xpath("div/div")[0].xpath("div/span/text()").get()
+        )
+
+        tags = self.parse_movie_tags(movie_tags)
+
+        movie = BestsimilarItem(**dict(title=title, **tags))
+
+        return movie
+
+    def parse_movie_tags(self, movie_tags_element):
+        tags = list()
+
+        for tag in movie_tags_element:
+            tag_title = tag.xpath(
+                "div/div[@class='block-ins-caption']/a/text()"
+            ).get()
+            tags.append(tag_title)
+
+        return dict(tags=tags)
