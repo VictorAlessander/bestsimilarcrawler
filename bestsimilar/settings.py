@@ -1,3 +1,5 @@
+from os import getenv
+
 # Scrapy settings for bestsimilar project
 #
 # For simplicity, this file contains only settings considered important or
@@ -12,6 +14,10 @@ BOT_NAME = "bestsimilar"
 SPIDER_MODULES = ["bestsimilar.spiders"]
 NEWSPIDER_MODULE = "bestsimilar.spiders"
 
+SPIDERMON_ENABLED = True
+SPIDERMON_SLACK_SENDER_TOKEN = getenv("SPIDERMON_SLACK_SENDER_TOKEN")
+SPIDERMON_SLACK_SENDER_NAME = "Brainiac Crawler"
+SPIDERMON_SLACK_RECIPIENTS = ["#scraping"]
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 USER_AGENT = "bestsimilar crawler (+https://victoralessander.github.io/)"
@@ -25,7 +31,7 @@ ROBOTSTXT_OBEY = True
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-DOWNLOAD_DELAY = 3
+DOWNLOAD_DELAY = 1
 # The download delay setting will honor only one of:
 # CONCURRENT_REQUESTS_PER_DOMAIN = 16
 # CONCURRENT_REQUESTS_PER_IP = 16
@@ -60,15 +66,25 @@ DOWNLOAD_DELAY = 3
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
-# EXTENSIONS = {
-#    'scrapy.extensions.telnet.TelnetConsole': None,
-# }
+EXTENSIONS = {
+    "spidermon.contrib.scrapy.extensions.Spidermon": 500,
+}
 
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
-# ITEM_PIPELINES = {
-#    'bestsimilar.pipelines.BestsimilarPipeline': 300,
-# }
+ITEM_PIPELINES = {
+    "spidermon.contrib.scrapy.pipelines.ItemValidationPipeline": 800
+}
+
+SPIDERMON_VALIDATION_MODELS = ("bestsimilar.schemas.BestSimilarSchema",)
+
+SPIDERMON_SPIDER_CLOSE_MONITORS = (
+    "bestsimilar.monitors.SpiderCloseMonitorSuite",
+)
+
+SPIDERMON_PERIODIC_MONITORS = {
+    "bestsimilar.monitors.SpiderPeriodicMonitorSuite": 60,  # time in seconds
+}
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html
